@@ -1,0 +1,14 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+
+# Environment
+.env
+credentials.json
+
+# IDE
+.vscode/
+.idea/
+
+# Virtual env
+venv/
