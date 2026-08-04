@@ -17,6 +17,7 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     ChatJoinRequestHandler,
+    ChatMemberHandler,
     ConversationHandler,
     MessageHandler,
     ContextTypes,
@@ -377,6 +378,28 @@ async def handle_join_decision(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text(f"Помилка: {e}")
 
 
+async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send welcome message when a new member joins the group."""
+    if update.chat_member is None:
+        return
+
+    new_status = update.chat_member.new_chat_member.status
+    old_status = update.chat_member.old_chat_member.status
+
+    if new_status == "member" and old_status in ("left", "kicked"):
+        user = update.chat_member.new_chat_member.user
+        chat_id = update.chat_member.chat.id
+
+        await context.bot.send_message(
+            chat_id,
+            f"🍺 Вітаємо, *{user.full_name}*!\n\n"
+            f"Натисніть на закріплене повідомлення вище або "
+            f"скористайтеся кнопками нижче, щоб переглянути пиво та зробити замовлення.",
+            reply_markup=build_main_menu(),
+            parse_mode="Markdown",
+        )
+
+
 # --- Admin commands (work in private chat with bot) ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -547,6 +570,7 @@ def main():
     app.add_handler(CommandHandler("editqty", admin_editqty))
     app.add_handler(CommandHandler("allstock", admin_allstock))
     app.add_handler(ChatJoinRequestHandler(handle_join_request))
+    app.add_handler(ChatMemberHandler(handle_new_member, ChatMemberHandler.CHAT_MEMBER))
     app.add_handler(CallbackQueryHandler(handle_join_decision, pattern=r"^(approve|decline)_"))
     app.add_handler(CallbackQueryHandler(handle_menu_buttons))
 

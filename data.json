@@ -1,4 +1,51 @@
 {
-  "stock": [],
-  "orders": []
+  "stock": [
+    {
+      "Name": "Озерний Хейзі",
+      "Style": "NEIPA",
+      "ABV": "5.4",
+      "IBU": "28",
+      "Bottles": "36",
+      "Price": "75",
+      "Available": "Yes"
+    },
+    {
+      "Name": "Темна Хвиля",
+      "Style": "Stout",
+      "ABV": "6.8",
+      "IBU": "42",
+      "Bottles": "24",
+      "Price": "85",
+      "Available": "Yes"
+    },
+    {
+      "Name": "Пшеничний Бриз",
+      "Style": "Wheat",
+      "ABV": "4.9",
+      "IBU": "15",
+      "Bottles": "48",
+      "Price": "65",
+      "Available": "Yes"
+    }
+  ],
+  "orders": [
+    {
+      "Order ID": "45E3F8B8",
+      "Date": "2026-06-06 15:24",
+      "User": "Zhabiy",
+      "Username": "Zhabiy33",
+      "Item": "Озерний Хейзі",
+      "Qty": 2,
+      "Status": "Нове"
+    },
+    {
+      "Order ID": "45E3F8B8",
+      "Date": "2026-06-06 15:24",
+      "User": "Zhabiy",
+      "Username": "Zhabiy33",
+      "Item": "Пшеничний Бриз",
+      "Qty": 9,
+      "Status": "Нове"
+    }
+  ]
 }
