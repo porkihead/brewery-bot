@@ -4,10 +4,18 @@ import json
 import os
 
 DATA_FILE = os.environ.get("DATA_FILE_PATH", os.path.join(os.path.dirname(__file__), "data.json"))
+SEED_FILE = os.path.join(os.path.dirname(__file__), "data.json")
 
 
 def _load() -> dict:
     if not os.path.exists(DATA_FILE):
+        # First run with volume: seed from bundled data.json
+        if DATA_FILE != SEED_FILE and os.path.exists(SEED_FILE):
+            import shutil
+            os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+            shutil.copy2(SEED_FILE, DATA_FILE)
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
         return {"stock": [], "orders": []}
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
