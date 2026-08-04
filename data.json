@@ -1,51 +1,77 @@
 {
   "stock": [
     {
-      "Name": "Озерний Хейзі",
-      "Style": "NEIPA",
-      "ABV": "5.4",
-      "IBU": "28",
-      "Bottles": "36",
-      "Price": "75",
-      "Available": "Yes"
-    },
-    {
-      "Name": "Темна Хвиля",
-      "Style": "Stout",
-      "ABV": "6.8",
-      "IBU": "42",
+      "Name": "Blossom Bite",
+      "Style": "Farmhouse Ale",
+      "ABV": "7.4",
+      "IBU": "17",
       "Bottles": "24",
-      "Price": "85",
+      "Price": "110",
       "Available": "Yes"
     },
     {
-      "Name": "Пшеничний Бриз",
-      "Style": "Wheat",
-      "ABV": "4.9",
+      "Name": "Pussy Juicy",
+      "Style": "Smoothie Sour",
+      "ABV": "4.4",
+      "IBU": "10",
+      "Bottles": "24",
+      "Price": "130",
+      "Available": "Yes"
+    },
+    {
+      "Name": "Backyard",
+      "Style": "IPA",
+      "ABV": "4.2",
+      "IBU": "23",
+      "Bottles": "24",
+      "Price": "70",
+      "Available": "Yes"
+    },
+    {
+      "Name": "Old Friend",
+      "Style": "Herbal Ale",
+      "ABV": "5.3",
+      "IBU": "26",
+      "Bottles": "24",
+      "Price": "100",
+      "Available": "Yes"
+    },
+    {
+      "Name": "Halls",
+      "Style": "Fruit Beer",
+      "ABV": "5.2",
+      "IBU": "20",
+      "Bottles": "24",
+      "Price": "80",
+      "Available": "Yes"
+    },
+    {
+      "Name": "Evergreen",
+      "Style": "Spruce IPA",
+      "ABV": "5.8",
+      "IBU": "45",
+      "Bottles": "24",
+      "Price": "90",
+      "Available": "Yes"
+    },
+    {
+      "Name": "True Legendary Black NEIPA",
+      "Style": "Black NEIPA",
+      "ABV": "5.5",
       "IBU": "15",
-      "Bottles": "48",
-      "Price": "65",
+      "Bottles": "24",
+      "Price": "100",
+      "Available": "Yes"
+    },
+    {
+      "Name": "The Time",
+      "Style": "Barley Wine",
+      "ABV": "12",
+      "IBU": "70",
+      "Bottles": "24",
+      "Price": "150",
       "Available": "Yes"
     }
   ],
-  "orders": [
-    {
-      "Order ID": "45E3F8B8",
-      "Date": "2026-06-06 15:24",
-      "User": "Zhabiy",
-      "Username": "Zhabiy33",
-      "Item": "Озерний Хейзі",
-      "Qty": 2,
-      "Status": "Нове"
-    },
-    {
-      "Order ID": "45E3F8B8",
-      "Date": "2026-06-06 15:24",
-      "User": "Zhabiy",
-      "Username": "Zhabiy33",
-      "Item": "Пшеничний Бриз",
-      "Qty": 9,
-      "Status": "Нове"
-    }
-  ]
+  "orders": []
 }

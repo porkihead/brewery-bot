@@ -3,7 +3,7 @@
 import json
 import os
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), "data.json")
+DATA_FILE = os.environ.get("DATA_FILE_PATH", os.path.join(os.path.dirname(__file__), "data.json"))
 
 
 def _load() -> dict:
