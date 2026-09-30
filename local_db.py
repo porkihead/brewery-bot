@@ -87,3 +87,6 @@ class LocalDB:
         if status:
             return [o for o in data["orders"] if o.get("Status", "").lower() == status.lower()]
         return data["orders"]
+
+    def get_data_file_path(self) -> str:
+        return DATA_FILE

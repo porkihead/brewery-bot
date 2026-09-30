@@ -412,7 +412,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/editqty <кількість> <назва> — Змінити залишок\n"
             "/remove <назва> — Видалити пиво\n"
             "/allstock — Переглянути всі позиції\n"
-            "/orders — Переглянути замовлення\n",
+            "/orders — Переглянути замовлення\n"
+            "/backup — Завантажити бекап бази даних\n",
             parse_mode="Markdown",
         )
     elif update.effective_chat.type == "private":
@@ -567,6 +568,23 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def admin_backup(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    filepath = db.get_data_file_path()
+    if not os.path.exists(filepath):
+        await update.message.reply_text("❌ Файл бази даних не знайдено.")
+        return
+
+    date = datetime.now().strftime("%Y%m%d_%H%M")
+    await update.message.reply_document(
+        document=open(filepath, "rb"),
+        filename=f"brewery_backup_{date}.json",
+        caption=f"📦 Бекап бази даних — {date}",
+    )
+
+
 def main():
     app = Application.builder().token(TOKEN).build()
 
@@ -593,6 +611,7 @@ def main():
     app.add_handler(CommandHandler("remove", admin_remove))
     app.add_handler(CommandHandler("editqty", admin_editqty))
     app.add_handler(CommandHandler("orders", admin_orders))
+    app.add_handler(CommandHandler("backup", admin_backup))
     app.add_handler(CommandHandler("allstock", admin_allstock))
     app.add_handler(ChatJoinRequestHandler(handle_join_request))
     app.add_handler(ChatMemberHandler(handle_new_member, ChatMemberHandler.CHAT_MEMBER))
