@@ -81,3 +81,9 @@ class LocalDB:
     def get_orders_by_user(self, username: str) -> list[dict]:
         data = _load()
         return [o for o in data["orders"] if o.get("Username") == username]
+
+    def get_all_orders(self, status: str = None) -> list[dict]:
+        data = _load()
+        if status:
+            return [o for o in data["orders"] if o.get("Status", "").lower() == status.lower()]
+        return data["orders"]

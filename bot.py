@@ -411,7 +411,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/addstock — Додати нове пиво\n"
             "/editqty <кількість> <назва> — Змінити залишок\n"
             "/remove <назва> — Видалити пиво\n"
-            "/allstock — Переглянути всі позиції\n",
+            "/allstock — Переглянути всі позиції\n"
+            "/orders — Переглянути замовлення\n",
             parse_mode="Markdown",
         )
     elif update.effective_chat.type == "private":
@@ -518,6 +519,29 @@ async def admin_editqty(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ '{name}' не знайдено.")
 
 
+async def admin_orders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    orders = db.get_all_orders()
+    if not orders:
+        await update.message.reply_text("Замовлень поки немає.")
+        return
+
+    # Show last 20 orders, newest first
+    recent = orders[-20:][::-1]
+    lines = ["📦 *Останні замовлення:*\n"]
+    for o in recent:
+        username = o.get('Username', '?')
+        user_display = f"@{username}" if not username.isdigit() else f"ID:{username}"
+        lines.append(
+            f"• `{o.get('Order ID', '?')}` — {o.get('Item', '?')} x{o.get('Qty', '?')} пл.\n"
+            f"  Від: {o.get('User', '?')} ({user_display})\n"
+            f"  {o.get('Date', '?')} — _{o.get('Status', '?')}_"
+        )
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
 async def admin_allstock(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         return
@@ -568,6 +592,7 @@ def main():
     app.add_handler(add_conv)
     app.add_handler(CommandHandler("remove", admin_remove))
     app.add_handler(CommandHandler("editqty", admin_editqty))
+    app.add_handler(CommandHandler("orders", admin_orders))
     app.add_handler(CommandHandler("allstock", admin_allstock))
     app.add_handler(ChatJoinRequestHandler(handle_join_request))
     app.add_handler(ChatMemberHandler(handle_new_member, ChatMemberHandler.CHAT_MEMBER))
