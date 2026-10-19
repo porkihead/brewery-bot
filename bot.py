@@ -62,9 +62,12 @@ async def post_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         return
 
+    bot_info = await context.bot.get_me()
     msg = await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="🍺 *Lake62 Brewing*\n\nОберіть дію:",
+        text=f"🍺 *Lake62 Brewing*\n\n"
+             f"⚠️ Перед початком напишіть /start боту @{bot_info.username} в особисті повідомлення.\n\n"
+             f"Потім натисніть кнопку нижче — відповідь прийде вам в особисті:",
         reply_markup=build_main_menu(),
         parse_mode="Markdown",
     )
