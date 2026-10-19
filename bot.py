@@ -47,9 +47,18 @@ def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
 
-# --- Main menu (posted in group, members interact via buttons) ---
+# --- Main menu (posted in group, URL buttons open bot DM) ---
 
-def build_main_menu():
+def build_main_menu(bot_username: str):
+    buttons = [
+        [InlineKeyboardButton("🍺 Наявне пиво", url=f"https://t.me/{bot_username}?start=stock")],
+        [InlineKeyboardButton("🛒 Зробити замовлення", url=f"https://t.me/{bot_username}?start=order")],
+        [InlineKeyboardButton("📋 Мої замовлення", url=f"https://t.me/{bot_username}?start=myorders")],
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+
+def build_dm_menu():
     buttons = [
         [InlineKeyboardButton("🍺 Наявне пиво", callback_data="menu_stock")],
         [InlineKeyboardButton("🛒 Зробити замовлення", callback_data="menu_order")],
@@ -62,10 +71,11 @@ async def post_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         return
 
+    bot_info = await context.bot.get_me()
     msg = await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="🍺 *Lake62 Brewing*\n\nОберіть дію:",
-        reply_markup=build_main_menu(),
+        reply_markup=build_main_menu(bot_info.username),
         parse_mode="Markdown",
     )
     try:
@@ -74,137 +84,51 @@ async def post_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 
-# --- Button handlers ---
+# --- Button handlers (all work in DM now) ---
 
 async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-    chat_id = query.message.chat.id
     user_id = query.from_user.id
 
-    # Track personal messages per user so we edit THEIR message, not the pinned menu
-    msg_key = f"msg_{user_id}"
-
     if data == "menu_stock":
-        await send_or_edit_personal(query, context, msg_key, *build_stock_content())
+        text, _ = build_stock_content()
+        buttons = [[InlineKeyboardButton("⬅️ Меню", callback_data="back_to_menu")]]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode="Markdown")
     elif data == "menu_order":
-        await send_or_edit_personal(query, context, msg_key, *build_order_content(query, context))
+        text, markup = build_order_content_for_user(user_id, context)
+        await query.edit_message_text(text, reply_markup=markup, parse_mode="Markdown")
     elif data == "menu_myorders":
-        await send_or_edit_personal(query, context, msg_key, *build_myorders_content(query))
+        text, markup = build_myorders_content_for_user(query.from_user)
+        await query.edit_message_text(text, reply_markup=markup, parse_mode="Markdown")
     elif data == "back_to_menu":
         context.bot_data.pop(f"cart_{user_id}", None)
         context.bot_data.pop(f"stock_{user_id}", None)
         context.bot_data.pop(f"selected_{user_id}", None)
-        await safe_edit(query, "🍺 *Lake62 Brewing*\n\nОберіть дію:", build_main_menu())
+        await query.edit_message_text(
+            "🍺 *Lake62 Brewing*\n\nОберіть дію:",
+            reply_markup=build_dm_menu(),
+            parse_mode="Markdown",
+        )
     elif data.startswith("pick_"):
         await handle_pick_item(query, context)
     elif data.startswith("qty_"):
         await handle_pick_qty(query, context)
     elif data == "add_more":
-        text, markup = build_order_content(query, context)
-        await safe_edit(query, text, markup)
+        text, markup = build_order_content_for_user(user_id, context)
+        await query.edit_message_text(text, reply_markup=markup, parse_mode="Markdown")
     elif data == "confirm_yes":
         await handle_confirm_order(query, context)
     elif data == "cancel_order":
         context.bot_data.pop(f"cart_{user_id}", None)
         context.bot_data.pop(f"stock_{user_id}", None)
         context.bot_data.pop(f"selected_{user_id}", None)
-        await safe_edit(query, "❌ Замовлення скасовано.\n\n🍺 *Lake62 Brewing*\n\nОберіть дію:", build_main_menu())
-
-
-async def safe_edit(query, text, reply_markup=None):
-    """Edit the message that the button belongs to. If it's the pinned menu, send a new one instead."""
-    try:
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-    except Exception:
-        await query.message.chat.send_message(text, reply_markup=reply_markup, parse_mode="Markdown",
-                                              disable_notification=True)
-
-
-async def send_or_edit_personal(query, context, msg_key, text, reply_markup):
-    """For first interaction from pinned menu: send new message. After that: edit user's personal message."""
-    chat_id = query.message.chat.id
-    user_id = query.from_user.id
-
-    # Check if the button was pressed on the pinned menu (not on a personal message)
-    stored_msg_id = context.bot_data.get(msg_key)
-    is_pinned = (stored_msg_id is None or query.message.message_id != stored_msg_id)
-
-    if is_pinned:
-        # Send a NEW message, don't edit the pinned menu
-        sent = await context.bot.send_message(
-            chat_id=chat_id,
-            text=text,
-            reply_markup=reply_markup,
+        await query.edit_message_text(
+            "❌ Замовлення скасовано.\n\n🍺 *Lake62 Brewing*\n\nОберіть дію:",
+            reply_markup=build_dm_menu(),
             parse_mode="Markdown",
-            disable_notification=True,
         )
-        context.bot_data[msg_key] = sent.message_id
-    else:
-        # Edit the user's own personal message
-        try:
-            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-        except Exception:
-            sent = await context.bot.send_message(
-                chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode="Markdown",
-                disable_notification=True,
-            )
-            context.bot_data[msg_key] = sent.message_id
-
-
-def build_stock_content():
-    items = db.get_stock()
-    if not items:
-        text = "Наразі нічого немає в наявності. Перевірте пізніше!"
-    else:
-        lines = ["🍺 *Наявне пиво:*\n"]
-        for i, item in enumerate(items, 1):
-            lines.append(
-                f"{i}. *{item['Name']}* — {item['Style']}\n"
-                f"   ABV: {item.get('ABV', '?')}% | IBU: {item.get('IBU', '?')}\n"
-                f"   Залишок: {item.get('Bottles', '?')} пл. (0.33л)\n"
-                f"   Ціна: {item['Price']} грн/пл."
-            )
-        text = "\n".join(lines)
-    buttons = [[InlineKeyboardButton("⬅️ Назад", callback_data="back_to_menu")]]
-    return text, InlineKeyboardMarkup(buttons)
-
-
-def build_order_content(query, context):
-    items = db.get_stock()
-    if not items:
-        buttons = [[InlineKeyboardButton("⬅️ Назад", callback_data="back_to_menu")]]
-        return "Наразі нічого немає в наявності. Перевірте пізніше!", InlineKeyboardMarkup(buttons)
-
-    user_id = query.from_user.id
-    context.bot_data[f"stock_{user_id}"] = items
-
-    lines = ["🛒 *Оберіть пиво:*\n"]
-    buttons = []
-    for i, item in enumerate(items):
-        lines.append(
-            f"*{i+1}. {item['Name']}* — {item['Style']}\n"
-            f"    ABV: {item.get('ABV', '?')}% | IBU: {item.get('IBU', '?')} | {item['Price']} грн/пл."
-        )
-        buttons.append([InlineKeyboardButton(f"{i+1}. {item['Name']}", callback_data=f"pick_{i}")])
-    buttons.append([InlineKeyboardButton("❌ Скасувати", callback_data="cancel_order")])
-    return "\n".join(lines), InlineKeyboardMarkup(buttons)
-
-
-def build_myorders_content(query):
-    username = query.from_user.username or str(query.from_user.id)
-    orders = db.get_orders_by_user(username)
-
-    if not orders:
-        text = "У вас ще немає замовлень. Натисніть 🛒 щоб зробити перше!"
-    else:
-        lines = ["📋 *Ваші замовлення:*\n"]
-        for o in orders[-10:]:
-            lines.append(f"• {o['Item']} x{o['Qty']} пл. — _{o['Status']}_ ({o['Date']})")
-        text = "\n".join(lines)
-    buttons = [[InlineKeyboardButton("⬅️ Назад", callback_data="back_to_menu")]]
-    return text, InlineKeyboardMarkup(buttons)
 
 
 
@@ -332,7 +256,7 @@ async def handle_confirm_order(query, context):
         f"{total_text}\n\n"
         f"Пивовар зв'яжеться з вами щодо отримання.\n\n"
         f"🍺 *Lake62 Brewing*",
-        reply_markup=build_main_menu(),
+        reply_markup=build_dm_menu(),
         parse_mode="Markdown",
     )
 
@@ -449,7 +373,28 @@ async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- Admin commands (work in private chat with bot) ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.type == "private" and is_admin(update.effective_user.id):
+    if update.effective_chat.type != "private":
+        return
+
+    # Handle deep links from group URL buttons
+    args = context.args
+    if args:
+        action = args[0]
+        if action == "stock":
+            text, markup = build_stock_content()
+            markup_with_menu = add_back_button(markup)
+            await update.message.reply_text(text, reply_markup=markup_with_menu, parse_mode="Markdown")
+            return
+        elif action == "order":
+            text, markup = build_order_content_for_user(update.effective_user.id, context)
+            await update.message.reply_text(text, reply_markup=markup, parse_mode="Markdown")
+            return
+        elif action == "myorders":
+            text, markup = build_myorders_content_for_user(update.effective_user)
+            await update.message.reply_text(text, reply_markup=markup, parse_mode="Markdown")
+            return
+
+    if is_admin(update.effective_user.id):
         await update.message.reply_text(
             "🍺 *Панель адміністратора*\n\n"
             "Команди:\n"
@@ -462,11 +407,71 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/backup — Завантажити бекап бази даних\n",
             parse_mode="Markdown",
         )
-    elif update.effective_chat.type == "private":
+    else:
         await update.message.reply_text(
-            "🍺 Вітаю! Цей бот працює в групі пивоварні.\n"
-            "Зверніться до адміна за посиланням для вступу."
+            "🍺 *Lake62 Brewing*\n\nОберіть дію:",
+            reply_markup=build_dm_menu(),
+            parse_mode="Markdown",
         )
+
+
+def add_back_button(markup):
+    """Add back-to-menu button to existing markup."""
+    buttons = list(markup.inline_keyboard) if markup else []
+    buttons.append([InlineKeyboardButton("⬅️ Меню", callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(buttons)
+
+
+def build_stock_content():
+    items = db.get_stock()
+    if not items:
+        text = "Наразі нічого немає в наявності. Перевірте пізніше!"
+    else:
+        lines = ["🍺 *Наявне пиво:*\n"]
+        for i, item in enumerate(items, 1):
+            lines.append(
+                f"{i}. *{item['Name']}* — {item['Style']}\n"
+                f"   ABV: {item.get('ABV', '?')}% | IBU: {item.get('IBU', '?')}\n"
+                f"   Залишок: {item.get('Bottles', '?')} пл. (0.33л)\n"
+                f"   Ціна: {item['Price']} грн/пл."
+            )
+        text = "\n".join(lines)
+    return text, InlineKeyboardMarkup([])
+
+
+def build_order_content_for_user(user_id, context):
+    items = db.get_stock()
+    if not items:
+        buttons = [[InlineKeyboardButton("⬅️ Меню", callback_data="back_to_menu")]]
+        return "Наразі нічого немає в наявності. Перевірте пізніше!", InlineKeyboardMarkup(buttons)
+
+    context.bot_data[f"stock_{user_id}"] = items
+
+    lines = ["🛒 *Оберіть пиво:*\n"]
+    buttons = []
+    for i, item in enumerate(items):
+        lines.append(
+            f"*{i+1}. {item['Name']}* — {item['Style']}\n"
+            f"    ABV: {item.get('ABV', '?')}% | IBU: {item.get('IBU', '?')} | {item['Price']} грн/пл."
+        )
+        buttons.append([InlineKeyboardButton(f"{i+1}. {item['Name']}", callback_data=f"pick_{i}")])
+    buttons.append([InlineKeyboardButton("❌ Скасувати", callback_data="cancel_order")])
+    return "\n".join(lines), InlineKeyboardMarkup(buttons)
+
+
+def build_myorders_content_for_user(user):
+    username = user.username or str(user.id)
+    orders = db.get_orders_by_user(username)
+
+    if not orders:
+        text = "У вас ще немає замовлень. Натисніть 🛒 щоб зробити перше!"
+    else:
+        lines = ["📋 *Ваші замовлення:*\n"]
+        for o in orders[-10:]:
+            lines.append(f"• {o['Item']} x{o['Qty']} пл. — _{o['Status']}_ ({o['Date']})")
+        text = "\n".join(lines)
+    buttons = [[InlineKeyboardButton("⬅️ Меню", callback_data="back_to_menu")]]
+    return text, InlineKeyboardMarkup(buttons)
 
 
 async def admin_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
