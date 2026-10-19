@@ -76,45 +76,145 @@ async def post_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- Button handlers ---
 
+async def _send_dm(query, context, text, reply_markup=None):
+    """Try to send a DM to the user. If they haven't started the bot, prompt them."""
+    try:
+        await context.bot.send_message(
+            chat_id=query.from_user.id,
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode="Markdown",
+        )
+    except Exception:
+        bot_info = await context.bot.get_me()
+        await query.answer(
+            f"Спочатку напишіть /start боту @{bot_info.username}",
+            show_alert=True,
+        )
+        return False
+    return True
+
+
 async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     data = query.data
 
+    # For group interactions: send DM, don't edit the pinned menu
+    is_group = query.message.chat.type in ("group", "supergroup")
+
     if data == "menu_stock":
-        await show_stock(query, context)
+        await query.answer()
+        if is_group:
+            await show_stock_dm(query, context)
+        else:
+            await show_stock(query, context)
     elif data == "menu_order":
-        await show_order_selection(query, context)
+        await query.answer()
+        if is_group:
+            await show_order_selection_dm(query, context)
+        else:
+            await show_order_selection(query, context)
     elif data == "menu_myorders":
-        await show_my_orders(query, context)
+        await query.answer()
+        if is_group:
+            await show_my_orders_dm(query, context)
+        else:
+            await show_my_orders(query, context)
     elif data == "back_to_menu":
+        await query.answer()
         user_id = query.from_user.id
         context.bot_data.pop(f"cart_{user_id}", None)
         context.bot_data.pop(f"stock_{user_id}", None)
         context.bot_data.pop(f"selected_{user_id}", None)
-        await query.edit_message_text(
-            "🍺 *Lake62 Brewing*\n\nОберіть дію:",
-            reply_markup=build_main_menu(),
-            parse_mode="Markdown",
-        )
+        if not is_group:
+            await query.edit_message_text(
+                "🍺 *Lake62 Brewing*\n\nОберіть дію:",
+                reply_markup=build_main_menu(),
+                parse_mode="Markdown",
+            )
+        else:
+            await _send_dm(query, context, "🍺 *Lake62 Brewing*\n\nОберіть дію:", build_main_menu())
     elif data.startswith("pick_"):
+        await query.answer()
         await handle_pick_item(query, context)
     elif data.startswith("qty_"):
+        await query.answer()
         await handle_pick_qty(query, context)
     elif data == "add_more":
+        await query.answer()
         await show_order_selection(query, context)
     elif data == "confirm_yes":
+        await query.answer()
         await handle_confirm_order(query, context)
     elif data == "cancel_order":
+        await query.answer()
         user_id = query.from_user.id
         context.bot_data.pop(f"cart_{user_id}", None)
         context.bot_data.pop(f"stock_{user_id}", None)
         context.bot_data.pop(f"selected_{user_id}", None)
-        await query.edit_message_text(
-            "❌ Замовлення скасовано.\n\n🍺 *Lake62 Brewing*\n\nОберіть дію:",
-            reply_markup=build_main_menu(),
-            parse_mode="Markdown",
+        if not is_group:
+            await query.edit_message_text(
+                "❌ Замовлення скасовано.\n\n🍺 *Lake62 Brewing*\n\nОберіть дію:",
+                reply_markup=build_main_menu(),
+                parse_mode="Markdown",
+            )
+        else:
+            await _send_dm(query, context, "❌ Замовлення скасовано.", build_main_menu())
+
+
+# --- DM versions of menu actions (sent as new messages, not edits) ---
+
+async def show_stock_dm(query, context):
+    items = db.get_stock()
+    if not items:
+        text = "Наразі нічого немає в наявності. Перевірте пізніше!"
+    else:
+        lines = ["🍺 *Наявне пиво:*\n"]
+        for i, item in enumerate(items, 1):
+            lines.append(
+                f"{i}. *{item['Name']}* — {item['Style']}\n"
+                f"   ABV: {item.get('ABV', '?')}% | IBU: {item.get('IBU', '?')}\n"
+                f"   Залишок: {item.get('Bottles', '?')} пл. (0.33л)\n"
+                f"   Ціна: {item['Price']} грн/пл."
+            )
+        text = "\n".join(lines)
+    await _send_dm(query, context, text)
+
+
+async def show_order_selection_dm(query, context):
+    items = db.get_stock()
+    if not items:
+        await _send_dm(query, context, "Наразі нічого немає в наявності. Перевірте пізніше!")
+        return
+
+    user_id = query.from_user.id
+    context.bot_data[f"stock_{user_id}"] = items
+
+    lines = ["🛒 *Оберіть пиво:*\n"]
+    buttons = []
+    for i, item in enumerate(items):
+        lines.append(
+            f"*{i+1}. {item['Name']}* — {item['Style']}\n"
+            f"    ABV: {item.get('ABV', '?')}% | IBU: {item.get('IBU', '?')} | {item['Price']} грн/пл."
         )
+        buttons.append([InlineKeyboardButton(f"{i+1}. {item['Name']}", callback_data=f"pick_{i}")])
+    buttons.append([InlineKeyboardButton("❌ Скасувати", callback_data="cancel_order")])
+
+    await _send_dm(query, context, "\n".join(lines), InlineKeyboardMarkup(buttons))
+
+
+async def show_my_orders_dm(query, context):
+    username = query.from_user.username or str(query.from_user.id)
+    orders = db.get_orders_by_user(username)
+
+    if not orders:
+        text = "У вас ще немає замовлень. Натисніть 🛒 щоб зробити перше!"
+    else:
+        lines = ["📋 *Ваші замовлення:*\n"]
+        for o in orders[-10:]:
+            lines.append(f"• {o['Item']} x{o['Qty']} пл. — _{o['Status']}_ ({o['Date']})")
+        text = "\n".join(lines)
+    await _send_dm(query, context, text)
 
 
 async def show_stock(query, context):
@@ -379,7 +479,7 @@ async def handle_join_decision(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Send welcome message when a new member joins the group."""
+    """Send welcome message via DM when a new member joins the group."""
     if update.chat_member is None:
         return
 
@@ -388,16 +488,18 @@ async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if new_status == "member" and old_status in ("left", "kicked"):
         user = update.chat_member.new_chat_member.user
-        chat_id = update.chat_member.chat.id
 
-        await context.bot.send_message(
-            chat_id,
-            f"🍺 Вітаємо, *{user.full_name}*!\n\n"
-            f"Натисніть на закріплене повідомлення вище або "
-            f"скористайтеся кнопками нижче, щоб переглянути пиво та зробити замовлення.",
-            reply_markup=build_main_menu(),
-            parse_mode="Markdown",
-        )
+        try:
+            await context.bot.send_message(
+                user.id,
+                f"🍺 Вітаємо в *Lake62 Brewing*!\n\n"
+                f"Натисніть на закріплене повідомлення в групі, щоб переглянути пиво та зробити замовлення.\n\n"
+                f"Або скористайтеся кнопками нижче:",
+                reply_markup=build_main_menu(),
+                parse_mode="Markdown",
+            )
+        except Exception:
+            pass
 
 
 # --- Admin commands (work in private chat with bot) ---
