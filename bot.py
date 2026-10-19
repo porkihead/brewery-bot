@@ -118,7 +118,8 @@ async def safe_edit(query, text, reply_markup=None):
     try:
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     except Exception:
-        await query.message.chat.send_message(text, reply_markup=reply_markup, parse_mode="Markdown")
+        await query.message.chat.send_message(text, reply_markup=reply_markup, parse_mode="Markdown",
+                                              disable_notification=True)
 
 
 async def send_or_edit_personal(query, context, msg_key, text, reply_markup):
@@ -137,6 +138,7 @@ async def send_or_edit_personal(query, context, msg_key, text, reply_markup):
             text=text,
             reply_markup=reply_markup,
             parse_mode="Markdown",
+            disable_notification=True,
         )
         context.bot_data[msg_key] = sent.message_id
     else:
@@ -145,7 +147,8 @@ async def send_or_edit_personal(query, context, msg_key, text, reply_markup):
             await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
         except Exception:
             sent = await context.bot.send_message(
-                chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode="Markdown"
+                chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode="Markdown",
+                disable_notification=True,
             )
             context.bot_data[msg_key] = sent.message_id
 
@@ -432,6 +435,7 @@ async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id,
             f"🍺 Вітаємо, *{user.full_name}*! Натисніть на закріплене повідомлення вище ☝️",
             parse_mode="Markdown",
+            disable_notification=True,
         )
         # Auto-delete welcome after 30 seconds to keep group clean
         import asyncio
