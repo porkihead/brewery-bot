@@ -262,12 +262,16 @@ async def handle_confirm_order(query, context):
 
     # Notify admins
     admin_lines = "\n".join(order_lines)
+    if user.username:
+        user_link = f"@{user.username}"
+    else:
+        user_link = f"[{fullname}](tg://user?id={user.id})"
     for admin_id in ADMIN_IDS:
         try:
             await context.bot.send_message(
                 admin_id,
                 f"🆕 *Нове замовлення!*\n"
-                f"Від: {fullname} (@{username})\n"
+                f"Від: {user_link}\n"
                 f"Номер: `{order_id}`\n\n"
                 f"{admin_lines}\n{total_text}",
                 parse_mode="Markdown",
